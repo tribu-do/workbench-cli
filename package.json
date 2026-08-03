@@ -1,0 +1,52 @@
+{
+  "name": "@tribu-do/workbench-cli",
+  "version": "0.1.0",
+  "description": "AI-first sandboxed agentic development workbench — task orchestration, hierarchical memory, sandbox mediation, multi-agent parity, pluggable deployment.",
+  "license": "MIT",
+  "author": "Richard Blondet <developer@richardblondet.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tribu-do/workbench-cli.git"
+  },
+  "homepage": "https://github.com/tribu-do/workbench-cli#readme",
+  "bugs": {
+    "url": "https://github.com/tribu-do/workbench-cli/issues"
+  },
+  "contributors": [
+    "Claude (Anthropic) <noreply@anthropic.com>",
+    "Codex (OpenAI) <noreply@openai.com>"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "workbench": "./dist/bin/cli.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/bin/cli.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test dist/**/*.test.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "commander": "^13.1.0",
+    "glob": "^13.0.6",
+    "picocolors": "^1.1.1",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.0.0"
+  }
+}
