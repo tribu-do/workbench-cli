@@ -37,8 +37,8 @@ function docsServerEnv(): NodeJS.ProcessEnv {
     DOCS_MCP_STORE_PATH: resolveDocsMcpDataDir(),
   };
   const global = loadGlobalConfig();
-  if (global.docs?.embeddingModel) env.DOCS_MCP_EMBEDDING_MODEL = global.docs.embeddingModel;
-  if (global.docs?.apiBase) env.OPENAI_API_BASE = global.docs.apiBase;
+  if (global.docs?.embedding_model) env.DOCS_MCP_EMBEDDING_MODEL = global.docs.embedding_model;
+  if (global.docs?.api_base) env.OPENAI_API_BASE = global.docs.api_base;
   return env;
 }
 
@@ -97,8 +97,8 @@ export function listIndexedLibraries(): IndexedLibrary[] {
 /** Dedicated embedding-model reporting function — reads workbench's own persisted setting. */
 function reportEmbeddingModel(): string {
   const global = loadGlobalConfig();
-  if (!global.docs?.embeddingModel) return 'default (docs-mcp-server built-in default; run `workbench init docs` to configure)';
-  return `${global.docs.embeddingModel}${global.docs.apiBase ? ` @ ${global.docs.apiBase}` : ''} (preset: ${global.docs.preset})`;
+  if (!global.docs?.embedding_model) return 'default (docs-mcp-server built-in default; run `workbench init docs` to configure)';
+  return `${global.docs.embedding_model}${global.docs.api_base ? ` @ ${global.docs.api_base}` : ''} (preset: ${global.docs.preset})`;
 }
 
 /**

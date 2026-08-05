@@ -11,7 +11,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import type { Command } from 'commander';
-import { resolveCredentialsPath } from '../../config.js';
+import { resolveGlobalConfigPath } from '../../config.js';
 import { createWorkbench } from '../context.js';
 import { listAvailableBackends } from '../../runtime/backends.js';
 import { HealthChecker, formatHealthReport } from '../../runtime/health.js';
@@ -72,8 +72,8 @@ export function registerDoctorCommand(program: Command): void {
             required: false,
           });
         }
-        const credPath = resolveCredentialsPath();
-        out.push({ name: 'credentials file', ok: fs.existsSync(credPath), detail: credPath, required: false });
+        const configPath = resolveGlobalConfigPath();
+        out.push({ name: 'global config', ok: fs.existsSync(configPath), detail: configPath, required: false });
         for (const cred of CREDENTIAL_CHECKS) {
           const value = process.env[cred.name];
           out.push({

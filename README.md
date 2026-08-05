@@ -1,5 +1,7 @@
 # Workbench
 
+> **Alpha Software** — This package is under active development and not ready for production use. APIs, configuration formats, and features may change without notice. Use at your own risk.
+
 AI-first sandboxed agentic development. Task orchestration, hierarchical memory, sandbox mediation, multi-agent parity, and pluggable deployment — as a single CLI tool.
 
 Workbench gives AI coding agents (Claude, Codex, Copilot) a structured environment: every task gets a branch, a sandbox, scoped memory, port allocation, secret injection, and a preview deployment. It works with new and existing projects.
@@ -264,29 +266,42 @@ agents:
       enabled: false
 ```
 
-## Credentials
+## Configuration
 
-Service credentials (Coolify, Netlify, Cloudflare, etc.) are stored in `~/.workbench` in your home directory. This file is never committed.
+Global configuration lives in `~/.workbench.toml`. This file is created by `workbench init` and stores credentials and settings.
 
-```bash
-touch ~/.workbench && chmod 600 ~/.workbench
+```toml
+# ~/.workbench.toml
+
+[agents]
+openai_api_key = "sk-..."
+anthropic_api_key = "sk-ant-..."
+github_token = "ghp_..."
+ollama_url = "http://localhost:11434"
+
+[memory]
+backend = "openviking"
+openviking_url = "http://localhost:8000"
+openviking_mode = "embedded"
+
+[deployments.coolify]
+url = "https://your-coolify-instance.example.com"
+token = "your-api-token"
+
+[deployments.netlify]
+token = "your-netlify-token"
+site_id = "your-site-id"
+
+[deployments.cloudflare]
+api_token = "your-cf-token"
+account_id = "your-account-id"
+
+[docs]
+preset = "openai"
+embedding_model = "text-embedding-3-small"
 ```
 
-```bash
-# Coolify (default preview provider)
-export WORKBENCH_COOLIFY_URL="https://your-coolify-instance.example.com"
-export WORKBENCH_COOLIFY_TOKEN="your-api-token"
-
-# Netlify
-export WORKBENCH_NETLIFY_TOKEN="your-netlify-token"
-export WORKBENCH_NETLIFY_SITE_ID="your-site-id"
-
-# Cloudflare
-export WORKBENCH_CLOUDFLARE_API_TOKEN="your-cf-token"
-export WORKBENCH_CLOUDFLARE_ACCOUNT_ID="your-account-id"
-```
-
-See [CREDENTIALS-SETUP.md](CREDENTIALS-SETUP.md) for full setup instructions.
+Secure this file: `chmod 600 ~/.workbench.toml`
 
 ## Programmatic API
 

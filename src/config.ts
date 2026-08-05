@@ -5,7 +5,63 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseToml, stringify as stringifyToml } from 'smol-toml';
 import type { WorkbenchConfig, PreviewGCPolicy, PortAllocatorConfig, RuntimeModeId } from './types.js';
+
+// ── Global config types (~/.workbench.toml) ────────────────────────────────────
+
+export interface GlobalAgents {
+  openai_api_key?: string;
+  anthropic_api_key?: string;
+  github_token?: string;
+  ollama_url?: string;
+}
+
+export interface GlobalMemory {
+  backend?: string;
+  openviking_url?: string;
+  openviking_mode?: string;
+  openviking_api_key?: string;
+  openviking_workspace?: string;
+}
+
+export interface DeploymentCoolify {
+  url?: string;
+  token?: string;
+  project_uuid?: string;
+  server_uuid?: string;
+  environment_name?: string;
+  git_repository?: string;
+}
+
+export interface DeploymentNetlify {
+  token?: string;
+  site_id?: string;
+}
+
+export interface DeploymentCloudflare {
+  api_token?: string;
+  account_id?: string;
+}
+
+export interface GlobalDeployments {
+  coolify?: DeploymentCoolify;
+  netlify?: DeploymentNetlify;
+  cloudflare?: DeploymentCloudflare;
+}
+
+export interface GlobalDocs {
+  preset?: 'openai' | 'ollama' | 'lm-studio';
+  embedding_model?: string;
+  api_base?: string;
+}
+
+export interface WorkbenchGlobalConfig {
+  agents?: GlobalAgents;
+  memory?: GlobalMemory;
+  deployments?: GlobalDeployments;
+  docs?: GlobalDocs;
+}
 
 const CONFIG_FILENAME = 'workbench.yaml';
 
@@ -121,23 +177,18 @@ function mergeConfig(defaults: WorkbenchConfig, overrides: Partial<WorkbenchConf
 // Global settings (~/.workbench/config.yaml) + docs embedding presets
 // ---------------------------------------------------------------------------
 
+/** @deprecated Use GlobalDocs from WorkbenchGlobalConfig instead */
 export interface DocsEmbeddingSettings {
   preset: 'openai' | 'ollama' | 'lm-studio';
-  /** DOCS_MCP_EMBEDDING_MODEL value, e.g. "openai:text-embedding-3-small". */
   embeddingModel: string;
-  /** OPENAI_API_BASE value; omitted for the `openai` preset (uses OpenAI's default endpoint). */
   apiBase?: string;
-}
-
-export interface WorkbenchGlobalConfig {
-  docs?: DocsEmbeddingSettings;
 }
 
 export function loadGlobalConfig(): WorkbenchGlobalConfig {
   const p = resolveGlobalConfigPath();
   if (!fs.existsSync(p)) return {};
   try {
-    return (parseYaml(fs.readFileSync(p, 'utf-8')) as WorkbenchGlobalConfig) ?? {};
+    return parseToml(fs.readFileSync(p, 'utf-8')) as WorkbenchGlobalConfig;
   } catch {
     return {};
   }
@@ -145,8 +196,7 @@ export function loadGlobalConfig(): WorkbenchGlobalConfig {
 
 export function writeGlobalConfig(config: WorkbenchGlobalConfig): void {
   const p = resolveGlobalConfigPath();
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, stringifyYaml(config, { indent: 2 }), 'utf-8');
+  fs.writeFileSync(p, stringifyToml(config as Record<string, unknown>), { mode: 0o600 });
 }
 
 export type DocsEmbeddingPreset = 'openai' | 'ollama' | 'lm-studio';
@@ -181,55 +231,96 @@ export function resolveEmbeddingPreset(
   };
 }
 
+/** Global config file (~/.workbench.toml). */
+export function resolveGlobalConfigPath(): string {
+  return process.env.WORKBENCH_CONFIG_PATH ?? path.join(process.env.HOME ?? '', '.workbench.toml');
+}
+
 /**
- * Load credentials from ~/.workbench (or WORKBENCH_CREDENTIALS_PATH).
- * Returns a record of WORKBENCH_* env vars found.
- * Does NOT read the file values into memory beyond what's needed —
- * values are set directly into process.env.
+ * Load credentials from ~/.workbench.toml into process.env.
+ * Maps TOML structure to environment variables expected by the codebase.
  */
 export function loadCredentials(): void {
-  const credPath = resolveCredentialsPath();
-  if (!fs.existsSync(credPath)) return;
+  const configPath = resolveGlobalConfigPath();
+  if (!fs.existsSync(configPath)) return;
 
   // Warn on permissive permissions
   try {
-    const mode = fs.statSync(credPath).mode & 0o777;
+    const mode = fs.statSync(configPath).mode & 0o777;
     if (mode & 0o077) {
-      process.stderr.write(`warning: ${credPath} has permissive mode ${mode.toString(8)}; consider \`chmod 600 ${credPath}\`\n`);
+      process.stderr.write(`warning: ${configPath} has permissive mode ${mode.toString(8)}; run \`chmod 600 ${configPath}\` to secure it\n`);
     }
   } catch { /* ignore */ }
 
-  const lines = fs.readFileSync(credPath, 'utf-8').split('\n');
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
+  const config = loadGlobalConfig();
 
-    const match = trimmed.match(/^export\s+(\w+)=["']?(.+?)["']?\s*$/);
-    if (match) {
-      const [, key, value] = match;
-      if (!process.env[key]) {
-        process.env[key] = value;
-      }
-    }
+  // [agents] → env vars
+  if (config.agents?.openai_api_key && !process.env.OPENAI_API_KEY) {
+    process.env.OPENAI_API_KEY = config.agents.openai_api_key;
+  }
+  if (config.agents?.anthropic_api_key && !process.env.ANTHROPIC_API_KEY) {
+    process.env.ANTHROPIC_API_KEY = config.agents.anthropic_api_key;
+  }
+  if (config.agents?.github_token && !process.env.GITHUB_TOKEN) {
+    process.env.GITHUB_TOKEN = config.agents.github_token;
+  }
+  if (config.agents?.ollama_url && !process.env.WORKBENCH_OLLAMA_URL) {
+    process.env.WORKBENCH_OLLAMA_URL = config.agents.ollama_url;
+  }
+
+  // [memory] → env vars
+  if (config.memory?.backend && !process.env.WORKBENCH_MEMORY_BACKEND) {
+    process.env.WORKBENCH_MEMORY_BACKEND = config.memory.backend;
+  }
+  if (config.memory?.openviking_url && !process.env.WORKBENCH_OPENVIKING_URL) {
+    process.env.WORKBENCH_OPENVIKING_URL = config.memory.openviking_url;
+  }
+  if (config.memory?.openviking_mode && !process.env.WORKBENCH_OPENVIKING_MODE) {
+    process.env.WORKBENCH_OPENVIKING_MODE = config.memory.openviking_mode;
+  }
+  if (config.memory?.openviking_api_key && !process.env.WORKBENCH_OPENVIKING_API_KEY) {
+    process.env.WORKBENCH_OPENVIKING_API_KEY = config.memory.openviking_api_key;
+  }
+  if (config.memory?.openviking_workspace && !process.env.WORKBENCH_OPENVIKING_WORKSPACE) {
+    process.env.WORKBENCH_OPENVIKING_WORKSPACE = config.memory.openviking_workspace;
+  }
+
+  // [deployments.coolify] → env vars
+  if (config.deployments?.coolify?.url && !process.env.WORKBENCH_COOLIFY_URL) {
+    process.env.WORKBENCH_COOLIFY_URL = config.deployments.coolify.url;
+  }
+  if (config.deployments?.coolify?.token && !process.env.WORKBENCH_COOLIFY_TOKEN) {
+    process.env.WORKBENCH_COOLIFY_TOKEN = config.deployments.coolify.token;
+  }
+  if (config.deployments?.coolify?.project_uuid && !process.env.WORKBENCH_COOLIFY_PROJECT_UUID) {
+    process.env.WORKBENCH_COOLIFY_PROJECT_UUID = config.deployments.coolify.project_uuid;
+  }
+  if (config.deployments?.coolify?.server_uuid && !process.env.WORKBENCH_COOLIFY_SERVER_UUID) {
+    process.env.WORKBENCH_COOLIFY_SERVER_UUID = config.deployments.coolify.server_uuid;
+  }
+  if (config.deployments?.coolify?.environment_name && !process.env.WORKBENCH_COOLIFY_ENVIRONMENT_NAME) {
+    process.env.WORKBENCH_COOLIFY_ENVIRONMENT_NAME = config.deployments.coolify.environment_name;
+  }
+  if (config.deployments?.coolify?.git_repository && !process.env.WORKBENCH_COOLIFY_GIT_REPOSITORY) {
+    process.env.WORKBENCH_COOLIFY_GIT_REPOSITORY = config.deployments.coolify.git_repository;
+  }
+
+  // [deployments.netlify] → env vars
+  if (config.deployments?.netlify?.token && !process.env.WORKBENCH_NETLIFY_TOKEN) {
+    process.env.WORKBENCH_NETLIFY_TOKEN = config.deployments.netlify.token;
+  }
+  if (config.deployments?.netlify?.site_id && !process.env.WORKBENCH_NETLIFY_SITE_ID) {
+    process.env.WORKBENCH_NETLIFY_SITE_ID = config.deployments.netlify.site_id;
+  }
+
+  // [deployments.cloudflare] → env vars
+  if (config.deployments?.cloudflare?.api_token && !process.env.WORKBENCH_CLOUDFLARE_API_TOKEN) {
+    process.env.WORKBENCH_CLOUDFLARE_API_TOKEN = config.deployments.cloudflare.api_token;
+  }
+  if (config.deployments?.cloudflare?.account_id && !process.env.WORKBENCH_CLOUDFLARE_ACCOUNT_ID) {
+    process.env.WORKBENCH_CLOUDFLARE_ACCOUNT_ID = config.deployments.cloudflare.account_id;
   }
 }
-
-/** Global settings directory (~/.workbench). */
-export function resolveGlobalDir(): string {
-  return process.env.WORKBENCH_GLOBAL_DIR ?? path.join(process.env.HOME ?? '', '.workbench');
-}
-
-/** Credentials file inside the global settings directory (~/.workbench/credentials). */
-export function resolveCredentialsPath(): string {
-  return process.env.WORKBENCH_CREDENTIALS_PATH ?? path.join(resolveGlobalDir(), 'credentials');
-}
-
-/** Global settings manifest (~/.workbench/config.yaml). */
-export function resolveGlobalConfigPath(): string {
-  return path.join(resolveGlobalDir(), 'config.yaml');
-}
-
-export const CREDENTIALS_PATH = resolveCredentialsPath();
 
 /** Root of the local .workbench state tree relative to cwd. */
 export function resolveWorkbenchDir(): string {

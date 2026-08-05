@@ -25,12 +25,13 @@ import {
   resolveMemoryThisDir,
   resolveRuntimesDir,
   resolveRuntimesLogsDir,
-  CREDENTIALS_PATH,
+  resolveGlobalConfigPath,
   loadGlobalConfig,
   writeGlobalConfig,
   defaultEmbeddingModelFor,
   defaultApiBaseFor,
   resolveEmbeddingPreset,
+  type WorkbenchGlobalConfig,
 } from '../../config.js';
 import type { DocsEmbeddingPreset } from '../../config.js';
 import {
@@ -188,20 +189,113 @@ function asProviderName(raw: string): DeploymentProviderName {
 
 // ── Credential helpers ─────────────────────────────────────────────────────────
 
-function ensureCredentialsFile(): void {
-  // Ensure the ~/.workbench/ global settings directory exists, then the file.
-  fs.mkdirSync(path.dirname(CREDENTIALS_PATH), { recursive: true });
-  if (!fs.existsSync(CREDENTIALS_PATH)) {
-    fs.writeFileSync(CREDENTIALS_PATH, '# Workbench credentials\n# chmod 600 this file\n', { mode: 0o600 });
+function ensureGlobalConfig(): void {
+  const configPath = resolveGlobalConfigPath();
+  if (!fs.existsSync(configPath)) {
+    writeGlobalConfig({});
   }
 }
 
-function appendCredential(key: string, value: string): void {
-  ensureCredentialsFile();
-  const content = fs.readFileSync(CREDENTIALS_PATH, 'utf-8');
-  const lines = content.split('\n').filter((l) => !l.startsWith(`export ${key}=`));
-  lines.push(`export ${key}="${value}"`);
-  fs.writeFileSync(CREDENTIALS_PATH, lines.join('\n') + '\n', { mode: 0o600 });
+type CredentialKey =
+  // agents
+  | 'OPENAI_API_KEY'
+  | 'ANTHROPIC_API_KEY'
+  | 'GITHUB_TOKEN'
+  | 'WORKBENCH_OLLAMA_URL'
+  // memory
+  | 'WORKBENCH_MEMORY_BACKEND'
+  | 'WORKBENCH_OPENVIKING_URL'
+  | 'WORKBENCH_OPENVIKING_MODE'
+  | 'WORKBENCH_OPENVIKING_API_KEY'
+  | 'WORKBENCH_OPENVIKING_WORKSPACE'
+  // deployments.coolify
+  | 'WORKBENCH_COOLIFY_URL'
+  | 'WORKBENCH_COOLIFY_TOKEN'
+  | 'WORKBENCH_COOLIFY_PROJECT_UUID'
+  | 'WORKBENCH_COOLIFY_SERVER_UUID'
+  | 'WORKBENCH_COOLIFY_ENVIRONMENT_NAME'
+  | 'WORKBENCH_COOLIFY_GIT_REPOSITORY'
+  // deployments.netlify
+  | 'WORKBENCH_NETLIFY_TOKEN'
+  | 'WORKBENCH_NETLIFY_SITE_ID'
+  // deployments.cloudflare
+  | 'WORKBENCH_CLOUDFLARE_API_TOKEN'
+  | 'WORKBENCH_CLOUDFLARE_ACCOUNT_ID';
+
+function setCredential(key: CredentialKey, value: string): void {
+  ensureGlobalConfig();
+  const config = loadGlobalConfig();
+
+  switch (key) {
+    // [agents]
+    case 'OPENAI_API_KEY':
+      config.agents = { ...config.agents, openai_api_key: value };
+      break;
+    case 'ANTHROPIC_API_KEY':
+      config.agents = { ...config.agents, anthropic_api_key: value };
+      break;
+    case 'GITHUB_TOKEN':
+      config.agents = { ...config.agents, github_token: value };
+      break;
+    case 'WORKBENCH_OLLAMA_URL':
+      config.agents = { ...config.agents, ollama_url: value };
+      break;
+
+    // [memory]
+    case 'WORKBENCH_MEMORY_BACKEND':
+      config.memory = { ...config.memory, backend: value };
+      break;
+    case 'WORKBENCH_OPENVIKING_URL':
+      config.memory = { ...config.memory, openviking_url: value };
+      break;
+    case 'WORKBENCH_OPENVIKING_MODE':
+      config.memory = { ...config.memory, openviking_mode: value };
+      break;
+    case 'WORKBENCH_OPENVIKING_API_KEY':
+      config.memory = { ...config.memory, openviking_api_key: value };
+      break;
+    case 'WORKBENCH_OPENVIKING_WORKSPACE':
+      config.memory = { ...config.memory, openviking_workspace: value };
+      break;
+
+    // [deployments.coolify]
+    case 'WORKBENCH_COOLIFY_URL':
+      config.deployments = { ...config.deployments, coolify: { ...config.deployments?.coolify, url: value } };
+      break;
+    case 'WORKBENCH_COOLIFY_TOKEN':
+      config.deployments = { ...config.deployments, coolify: { ...config.deployments?.coolify, token: value } };
+      break;
+    case 'WORKBENCH_COOLIFY_PROJECT_UUID':
+      config.deployments = { ...config.deployments, coolify: { ...config.deployments?.coolify, project_uuid: value } };
+      break;
+    case 'WORKBENCH_COOLIFY_SERVER_UUID':
+      config.deployments = { ...config.deployments, coolify: { ...config.deployments?.coolify, server_uuid: value } };
+      break;
+    case 'WORKBENCH_COOLIFY_ENVIRONMENT_NAME':
+      config.deployments = { ...config.deployments, coolify: { ...config.deployments?.coolify, environment_name: value } };
+      break;
+    case 'WORKBENCH_COOLIFY_GIT_REPOSITORY':
+      config.deployments = { ...config.deployments, coolify: { ...config.deployments?.coolify, git_repository: value } };
+      break;
+
+    // [deployments.netlify]
+    case 'WORKBENCH_NETLIFY_TOKEN':
+      config.deployments = { ...config.deployments, netlify: { ...config.deployments?.netlify, token: value } };
+      break;
+    case 'WORKBENCH_NETLIFY_SITE_ID':
+      config.deployments = { ...config.deployments, netlify: { ...config.deployments?.netlify, site_id: value } };
+      break;
+
+    // [deployments.cloudflare]
+    case 'WORKBENCH_CLOUDFLARE_API_TOKEN':
+      config.deployments = { ...config.deployments, cloudflare: { ...config.deployments?.cloudflare, api_token: value } };
+      break;
+    case 'WORKBENCH_CLOUDFLARE_ACCOUNT_ID':
+      config.deployments = { ...config.deployments, cloudflare: { ...config.deployments?.cloudflare, account_id: value } };
+      break;
+  }
+
+  writeGlobalConfig(config);
 }
 
 function getCredential(key: string): string | undefined {
@@ -258,8 +352,8 @@ function scaffoldWorkspace(opts: { name: string; mode: RuntimeMode; provider: De
   };
   writeConfig(config);
 
-  // Global settings directory — ~/.workbench/ with credentials file.
-  ensureCredentialsFile();
+  // Global config file — ~/.workbench.toml
+  ensureGlobalConfig();
 
   // Warm the docs-mcp-server package into the npx cache (non-destructive install).
   try {
@@ -387,15 +481,15 @@ export function registerInitCommand(program: Command): void {
             initialValue: getCredential('WORKBENCH_OPENVIKING_URL') ?? 'http://localhost:8000',
             default: getCredential('WORKBENCH_OPENVIKING_URL') ?? 'http://localhost:8000',
           });
-          appendCredential('WORKBENCH_OPENVIKING_URL', url);
-          appendCredential('WORKBENCH_OPENVIKING_MODE', 'client-docker');
+          setCredential('WORKBENCH_OPENVIKING_URL', url);
+          setCredential('WORKBENCH_OPENVIKING_MODE', 'client-docker');
           ui.note('docker run -d --name workbench-openviking -p 8000:8000 openviking/openviking:latest', 'Start the service');
         } else {
-          appendCredential('WORKBENCH_OPENVIKING_MODE', 'embedded');
+          setCredential('WORKBENCH_OPENVIKING_MODE', 'embedded');
           ui.note('pip install openviking', 'Install locally');
         }
 
-        appendCredential('WORKBENCH_MEMORY_BACKEND', 'openviking');
+        setCredential('WORKBENCH_MEMORY_BACKEND', 'openviking');
         ui.outro('Memory backend configured: openviking');
       }
     });
@@ -522,7 +616,7 @@ export function registerInitCommand(program: Command): void {
         default: 'claude',
       });
 
-      const keyByAgent: Record<string, { key: string; url: string }> = {
+      const keyByAgent: Record<string, { key: CredentialKey; url: string }> = {
         claude: { key: 'ANTHROPIC_API_KEY', url: 'https://console.anthropic.com/settings/keys' },
         codex: { key: 'OPENAI_API_KEY', url: 'https://platform.openai.com/api-keys' },
         copilot: { key: 'GITHUB_TOKEN', url: 'https://github.com/settings/tokens' },
@@ -534,7 +628,7 @@ export function registerInitCommand(program: Command): void {
           initialValue: 'http://localhost:11434',
           default: 'http://localhost:11434',
         });
-        appendCredential('WORKBENCH_OLLAMA_URL', url);
+        setCredential('WORKBENCH_OLLAMA_URL', url);
         ui.outro('Agent configured: opencode');
         return;
       }
@@ -542,7 +636,7 @@ export function registerInitCommand(program: Command): void {
       const spec = keyByAgent[agent];
       ui.note(`Get your key from: ${spec.url}`, agent);
       const value = await ui.password({ message: spec.key });
-      if (value) appendCredential(spec.key, value);
+      if (value) setCredential(spec.key, value);
       ui.outro(`Agent configured: ${agent}`);
     });
 
@@ -571,15 +665,15 @@ export function registerInitCommand(program: Command): void {
           initialValue: getCredential('WORKBENCH_COOLIFY_URL') ?? 'https://coolify.example.com',
           default: getCredential('WORKBENCH_COOLIFY_URL') ?? 'https://coolify.example.com',
         });
-        appendCredential('WORKBENCH_COOLIFY_URL', url);
+        setCredential('WORKBENCH_COOLIFY_URL', url);
         const token = await ui.password({ message: 'WORKBENCH_COOLIFY_TOKEN' });
-        if (token) appendCredential('WORKBENCH_COOLIFY_TOKEN', token);
+        if (token) setCredential('WORKBENCH_COOLIFY_TOKEN', token);
       } else if (provider === 'netlify') {
         const token = await ui.password({ message: 'WORKBENCH_NETLIFY_TOKEN' });
-        if (token) appendCredential('WORKBENCH_NETLIFY_TOKEN', token);
+        if (token) setCredential('WORKBENCH_NETLIFY_TOKEN', token);
       } else if (provider === 'cloudflare') {
         const token = await ui.password({ message: 'WORKBENCH_CLOUDFLARE_API_TOKEN' });
-        if (token) appendCredential('WORKBENCH_CLOUDFLARE_API_TOKEN', token);
+        if (token) setCredential('WORKBENCH_CLOUDFLARE_API_TOKEN', token);
       }
 
       ui.outro(`Deployment provider configured: ${provider}`);
@@ -625,12 +719,12 @@ export function registerInitCommand(program: Command): void {
 
       if (preset === 'openai') {
         const apiKey = await ui.password({ message: 'OPENAI_API_KEY' });
-        if (apiKey) appendCredential('OPENAI_API_KEY', apiKey);
+        if (apiKey) setCredential('OPENAI_API_KEY', apiKey);
       }
 
       writeGlobalConfig({
         ...loadGlobalConfig(),
-        docs: { preset, embeddingModel: resolved.embeddingModel, apiBase: resolved.apiBase },
+        docs: { preset, embedding_model: resolved.embeddingModel, api_base: resolved.apiBase },
       });
 
       ui.outro(

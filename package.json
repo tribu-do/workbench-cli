@@ -1,6 +1,6 @@
 {
   "name": "@tribu-do/workbench-cli",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "description": "AI-first sandboxed agentic development workbench — task orchestration, hierarchical memory, sandbox mediation, multi-agent parity, pluggable deployment.",
   "license": "MIT",
   "author": "Richard Blondet <developer@richardblondet.com>",
@@ -42,6 +42,7 @@
     "commander": "^13.1.0",
     "glob": "^13.0.6",
     "picocolors": "^1.1.1",
+    "smol-toml": "^1.7.1",
     "yaml": "^2.7.0"
   },
   "devDependencies": {

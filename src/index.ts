@@ -48,7 +48,7 @@ export type {
 } from './types.js';
 
 // Core services
-export { loadConfig, writeConfig, loadCredentials, resolveCredentialsPath, findConfigPath, DEFAULT_CONFIG } from './config.js';
+export { loadConfig, writeConfig, loadCredentials, resolveGlobalConfigPath, findConfigPath, DEFAULT_CONFIG } from './config.js';
 export { Orchestrator, OrchestratorError } from './orchestrator.js';
 export { PolicyEngine, PolicyError } from './policy-engine.js';
 export { SandboxBroker } from './sandbox-broker.js';

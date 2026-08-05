@@ -5,7 +5,7 @@
 import type { Command } from 'commander';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
-import { resolveCredentialsPath } from '../../config.js';
+import { resolveGlobalConfigPath } from '../../config.js';
 import * as ui from '../ui.js';
 
 export function registerHelloCommand(program: Command): void {
@@ -24,11 +24,11 @@ export function registerHelloCommand(program: Command): void {
         `codex:       ${probe('codex --version')}`,
       ];
 
-      const credPath = resolveCredentialsPath();
-      const credExists = fs.existsSync(credPath);
-      rows.push(`credentials: ${credExists ? `found at ${credPath}` : 'missing — see CREDENTIALS-SETUP.md'}`);
+      const configPath = resolveGlobalConfigPath();
+      const configExists = fs.existsSync(configPath);
+      rows.push(`config:      ${configExists ? `found at ${configPath}` : 'missing — run workbench init'}`);
 
-      if (credExists) {
+      if (configExists) {
         const flags: string[] = [];
         if (process.env.WORKBENCH_COOLIFY_URL) flags.push('coolify');
         if (process.env.WORKBENCH_NETLIFY_TOKEN) flags.push('netlify');
