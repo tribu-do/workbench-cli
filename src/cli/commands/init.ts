@@ -685,6 +685,21 @@ export function registerInitCommand(program: Command): void {
     .description('Configure the embedding model used by the docs server (optional)')
     .action(async () => {
       ui.intro('Docs embedding model setup');
+      ui.note(
+        'The docs server works without configuration using built-in defaults.\n' +
+        'Configure only if you need a specific embedding provider.',
+        'Optional'
+      );
+
+      const configure = await ui.confirm({
+        message: 'Configure embedding model?',
+        initialValue: false,
+      });
+
+      if (!configure) {
+        ui.outro('Using docs-mcp-server defaults. Run `workbench docs` to index documentation.');
+        return;
+      }
 
       const preset = await ui.select<DocsEmbeddingPreset>({
         message: 'Select embedding model preset',
