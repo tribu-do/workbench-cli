@@ -24,6 +24,10 @@ import type { Task } from '../types.js';
 
 type WorkspaceState = 'uninitialized' | 'partial' | 'ready';
 
+const packageVersion = (
+  JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { version: string }
+).version;
+
 /**
  * Determine setup completeness from the filesystem (file-first — no DB):
  *   uninitialized — no workbench.yaml found.
@@ -87,7 +91,7 @@ export function createProgram(): Command {
   program
     .name('workbench')
     .description('AI-first sandboxed agentic development workbench')
-    .version('0.1.0')
+    .version(packageVersion)
     .option('--no-interactive', 'Disable interactive prompts (agent/CI mode)');
 
   program.hook('preAction', (thisCommand) => {
