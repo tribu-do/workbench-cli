@@ -1,6 +1,6 @@
 {
   "name": "@tribu-do/workbench-cli",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "AI-first sandboxed agentic development workbench — task orchestration, hierarchical memory, sandbox mediation, multi-agent parity, pluggable deployment.",
   "license": "MIT",
   "author": "Richard Blondet <developer@richardblondet.com>",
